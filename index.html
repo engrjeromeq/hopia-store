@@ -231,13 +231,20 @@
           
           <!-- Hidden GCash Section -->
           <div class="input-group" id="gcashSection" style="display: none; background: #FFF3E0; padding: 15px; border-radius: 8px; border: 1.5px dashed var(--accent);">
-            <label style="color: var(--accent); margin-bottom: 8px;">GCash Payment Details</label>
-            <p style="margin: 0 0 10px; font-size: 0.9rem;">Please send <strong>₱<span id="gcashTotalDisplay">0</span></strong> to:<br><strong>0926 1199 915 (JE**Y Q.)</strong></p>
-            
-            <label style="font-size: 0.85rem;">Upload Screenshot / Proof of Payment</label>
-            <input type="file" id="proofFile" accept="image/*" onchange="compressProof(this)" style="padding: 10px 0; background: transparent; border: none;">
-            <input type="hidden" id="proofData">
-            <div id="proofStatus" style="font-size: 0.85rem; color: var(--accent); font-weight: 600;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
+              <div style="flex: 1;">
+                <label style="color: var(--accent); margin-bottom: 8px;">GCash Payment Details</label>
+                <p style="margin: 0 0 10px; font-size: 0.9rem;">Please send <strong>₱<span id="gcashTotalDisplay">0</span></strong> to:<br><strong>0926 1199 915 (JE**Y Q.)</strong></p>
+                <label style="font-size: 0.85rem;">Upload Screenshot / Proof of Payment</label>
+                <input type="file" id="proofFile" accept="image/*" onchange="compressProof(this)" style="padding: 10px 0; background: transparent; border: none; width: 100%;">
+                <input type="hidden" id="proofData">
+                <div id="proofStatus" style="font-size: 0.85rem; color: var(--accent); font-weight: 600;"></div>
+              </div>
+              <div style="flex-shrink: 0; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                <img src="gcash-qr.jpg" alt="GCash QR" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 2px solid #D84315; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: transform 0.2s;" onclick="openQRModal()" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" title="Click to enlarge">
+                <div style="font-size: 0.75rem; color: var(--accent); margin-top: 6px; font-weight: 700; cursor: pointer;" onclick="openQRModal()">🔍 Zoom</div>
+              </div>
+            </div>
           </div>
           
           <button type="submit" class="submit-btn" id="submitBtn">Confirm Order</button>
@@ -313,6 +320,21 @@
             </div>
           </a>
         </div>
+      </div>
+    </div>
+
+    <!-- QR Zoom/Download Modal -->
+    <div class="modal-overlay" id="qrOverlay" onclick="closeQRModal()" style="z-index: 300;"></div>
+    <div id="qrModal" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; pointer-events: none; background: var(--card-bg); padding: 24px; border-radius: var(--radius-lg); z-index: 301; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; box-shadow: 0 15px 50px rgba(0,0,0,0.3); width: 90%; max-width: 340px;">
+      <h3 style="margin: 0 0 15px; font-size: 1.3rem; color: var(--text-main);">Scan to Pay</h3>
+      <img src="gcash-qr.jpg" alt="GCash QR Large" style="width: 100%; max-width: 280px; height: auto; border-radius: 12px; margin-bottom: 20px; border: 1px solid #EFEBE9;">
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="gcash-qr.jpg" download="GCash_QR_HopiaEtc.jpg" class="btn-accent" style="padding: 12px 20px; border-radius: var(--radius-pill); text-decoration: none; font-weight: 700; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          📥 Download
+        </a>
+        <button type="button" onclick="closeQRModal()" style="padding: 12px 20px; border-radius: var(--radius-pill); border: 1.5px solid #EFEBE9; background: #FAFAFA; color: var(--text-main); font-weight: 700; cursor: pointer; flex: 1; font-family: inherit;">
+          Close
+        </button>
       </div>
     </div>
 
@@ -503,6 +525,20 @@
         } catch (err) {
           alert("Please copy manually: https://quirona.github.io/hopia-store/");
         }
+      }
+
+      function openQRModal() {
+        document.getElementById('qrOverlay').classList.add('active');
+        document.getElementById('qrModal').style.opacity = '1';
+        document.getElementById('qrModal').style.pointerEvents = 'auto';
+        document.getElementById('qrModal').style.transform = 'translate(-50%, -50%) scale(1)';
+      }
+
+      function closeQRModal() {
+        document.getElementById('qrOverlay').classList.remove('active');
+        document.getElementById('qrModal').style.opacity = '0';
+        document.getElementById('qrModal').style.pointerEvents = 'none';
+        document.getElementById('qrModal').style.transform = 'translate(-50%, -50%) scale(0.9)';
       }
 
       function closeAllSheets() {
