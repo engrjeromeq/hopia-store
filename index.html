@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,600&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+      :root {
+        --bg-color: #FDF8F5; --card-bg: #FFFFFF; --text-main: #3E2723;
+        --text-muted: #8D6E63; --accent: #D84315; --accent-hover: #BF360C;
+        --radius-lg: 16px; --radius-md: 8px; --radius-pill: 50px;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      
+      body { 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        background-color: var(--bg-color); 
+        background-image: radial-gradient(#EFEBE9 2px, transparent 2px);
+        background-size: 24px 24px;
+        margin: 0; 
+        padding: 0; 
+        color: var(--text-main); 
+        padding-bottom: 100px; 
+      }
+      
+      .header { padding: 30px 20px 20px; text-align: center; }
+      .brand-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin: 0 0 5px 0; color: var(--text-main); letter-spacing: -0.5px; }
+      .brand-subtitle { font-size: 0.95rem; color: var(--text-muted); margin: 0 0 15px 0; background: var(--bg-color); display: inline-block; padding: 0 10px;}
+      
+      .header-actions { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+      .track-btn { background: var(--text-main); color: white; border: none; padding: 8px 20px; border-radius: var(--radius-pill); font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+      .share-btn { background: transparent; color: var(--text-main); border: 2px solid #EFEBE9; padding: 8px 18px; border-radius: var(--radius-pill); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+      .share-btn:hover { background: #FAFAFA; border-color: var(--accent); color: var(--accent); }
+      
+      .menu-container { padding: 0 20px; max-width: 800px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+      .product-card { background: var(--card-bg); border-radius: var(--radius-lg); box-shadow: 0 4px 16px rgba(62, 39, 35, 0.04); overflow: hidden; display: flex; flex-direction: column; border: 1px solid #EFEBE9;}
+      .product-image { width: 100%; height: 150px; object-fit: cover; }
+      .product-info { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
+      .product-name { font-weight: 700; font-size: 1.05rem; margin: 0 0 4px 0; line-height: 1.3; }
+      .product-price { color: var(--accent); font-weight: 700; font-size: 1.1rem; margin-bottom: 12px; }
+      .stepper { display: flex; align-items: center; justify-content: space-between; background: var(--bg-color); border-radius: var(--radius-md); padding: 4px; margin-top: auto; }
+      .step-btn { background: var(--card-bg); border: 1px solid #EFEBE9; color: var(--text-main); width: 32px; height: 32px; border-radius: 6px; font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+      .step-value { font-weight: 700; font-size: 1rem; width: 30px; text-align: center; }
+
+      .floating-basket { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(150%); width: calc(100% - 40px); max-width: 500px; background: var(--text-main); color: white; border-radius: var(--radius-pill); padding: 12px 16px 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px rgba(62, 39, 35, 0.25); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 100; }
+      .floating-basket.visible { transform: translateX(-50%) translateY(0); }
+      .basket-info { display: flex; flex-direction: column; }
+      .basket-items { font-size: 0.85rem; opacity: 0.8; }
+      .basket-total { font-size: 1.2rem; font-weight: 700; }
+      .checkout-btn { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: var(--radius-pill); font-weight: 700; font-size: 1rem; cursor: pointer; font-family: inherit; }
+
+      .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 200; }
+      .modal-overlay.active { opacity: 1; pointer-events: auto; }
+      
+      .bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-radius: 24px 24px 0 0; padding: 30px 24px 40px; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 201; max-height: 90vh; overflow-y: auto; box-shadow: 0 -10px 40px rgba(0,0,0,0.1); }
+      .bottom-sheet.active { transform: translateY(0); }
+      
+      .sheet-content { max-width: 600px; margin: 0 auto; }
+      .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .sheet-header h2 { margin: 0; font-size: 1.5rem; }
+      .close-btn { background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--text-muted); }
+      
+      .order-summary { background: var(--bg-color); padding: 16px; border-radius: var(--radius-lg); margin-bottom: 24px; font-size: 0.95rem; line-height: 1.5; }
+      .input-group { margin-bottom: 16px; }
+      .input-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+      .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 14px; border: 1.5px solid #EFEBE9; border-radius: var(--radius-md); font-family: inherit; font-size: 1rem; background: #FAFAFA; transition: border-color 0.2s; }
+      .input-group input:focus, .input-group textarea:focus, .input-group select:focus { outline: none; border-color: var(--accent); background: white; }
+      
+      .btn-accent { background: var(--accent); color: white; border: none; cursor: pointer; }
+      .btn-accent:hover { background: var(--accent-hover); }
+      .submit-btn { width: 100%; background: var(--text-main); color: white; border: none; padding: 16px; border-radius: var(--radius-pill); font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 10px; }
+      .submit-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+      .status-message { text-align: center; margin-top: 16px; font-weight: 600; color: #2E7D32; }
+      .loader { text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600; grid-column: 1 / -1; }
+
+      .tracker-result { margin-top: 20px; padding: 15px; background: var(--bg-color); border-radius: var(--radius-md); display: none; }
+      .tracker-result.show { display: block; }
+      .status-badge { display: inline-block; padding: 5px 10px; background: var(--text-main); color: white; border-radius: 4px; font-weight: 600; font-size: 0.9rem; margin-top: 5px; }
+
+      #map-container { display: none; width: 100%; height: 250px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1.5px solid #EFEBE9; z-index: 1; }
+
+      .contact-float-btn {
+        position: fixed;
+        bottom: 24px;
+        left: 20px;
+        background: var(--text-main);
+        color: #ffffff;
+        border: 2px solid #ffffff;
+        padding: 12px 22px;
+        border-radius: var(--radius-pill);
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(62, 39, 35, 0.3);
+        z-index: 99;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.2s ease, background-color 0.2s ease;
+      }
+      .contact-float-btn:hover { background: var(--accent); transform: translateY(-2px); }
+
+      .contact-options { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+      .contact-opt-btn { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: var(--radius-md); text-decoration: none; font-weight: 700; font-size: 0.95rem; }
+      .opt-call { background: #EFEBE9; color: var(--text-main); border: 1px solid #D7CCC8; }
+      .opt-whatsapp { background: #25D366; color: white; }
+      .opt-viber { background: #7360F2; color: white; }
+
+      /* Safe Mobile 3-Column Grid Adjustment */
+      @media (max-width: 600px) {
+        .menu-container {
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 8px !important;
+          padding: 0 8px !important;
+        }
+        .product-card { border-radius: 10px; }
+        .product-image { height: 90px; }
+        .product-info { padding: 8px 6px; }
+        .product-name { font-size: 0.78rem; line-height: 1.2; margin-bottom: 4px; }
+        .product-price { font-size: 0.85rem; margin-bottom: 8px; }
+        .stepper { padding: 2px; border-radius: 6px; }
+        .step-btn { width: 24px; height: 24px; font-size: 0.9rem; border-radius: 4px; }
+        .step-value { font-size: 0.8rem; width: 18px; }
+      }
+
+      /* Custom Banner Tip */
+      .banner-tip {
+        background-color: #FFF3E0;
+        color: #D84315;
+        padding: 6px 15px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-align: right;
+        border-bottom: 1px solid #FFE0B2;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .banner-tip span { cursor: pointer; font-size: 1.1rem; color: #BF360C; margin-left: 15px; padding: 0 5px; }
+
+      /* Mobile fix to stop banner text from wrapping */
+      @media (max-width: 600px) {
+        .banner-tip {
+          font-size: 0.65rem; 
+          padding: 6px 8px; 
+          white-space: nowrap; 
+          justify-content: center;
+        }
+        .banner-tip span {
+          margin-left: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Warning Banner Label Add-on -->
+    <div class="banner-tip" id="bannerTip">
+      👆 Tip: Click the 'X' above to hide the Google warning ↗
+      <span onclick="document.getElementById('bannerTip').style.display='none'" title="Close this tip">×</span>
+    </div>
+
+    <header class="header">
+      <h1 class="brand-title">Hopia & etc.</h1>
+      <p class="brand-subtitle">Bringing you your favorites, bakery-fresh.</p>
+      <div class="header-actions">
+        <button class="track-btn" onclick="openTracker()">Track an Order</button>
+        <button class="share-btn" onclick="shareStore()">🔗 Share Store</button>
+      </div>
+    </header>
+
+    <main class="menu-container" id="menuGrid">
+      <div class="loader">Warming up the ovens... (Loading Menu)</div>
+    </main>
+
+    <div class="floating-basket" id="basketBar">
+      <div class="basket-info">
+        <span class="basket-items" id="basketCount">0 items</span>
+        <span class="basket-total" id="basketTotal">₱0</span>
+      </div>
+      <button class="checkout-btn" onclick="openCheckout()">Checkout</button>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="overlay" onclick="closeAllSheets()"></div>
+    
+    <!-- Checkout Sheet -->
+    <div class="bottom-sheet" id="checkoutSheet">
+      <div class="sheet-content">
+        <div class="sheet-header">
+          <h2>Your Delivery Details</h2>
+          <button class="close-btn" onclick="closeAllSheets()">×</button>
+        </div>
+        
+        <div class="order-summary" id="summaryBox"></div>
+        
+        <form id="orderForm" onsubmit="submitOrder(event)">
+          <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="custName" required placeholder="Juan Dela Cruz" autocomplete="name">
+          </div>
+          <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" id="custEmail" required placeholder="juan@example.com" autocomplete="email">
+          </div>
+          <div class="input-group">
+            <label>Primary Phone Number</label>
+            <input 
+              type="tel" 
+              id="custPhone" 
+              required 
+              placeholder="09123456789" 
+              autocomplete="tel"
+              pattern="09[0-9]{9}"
+              maxlength="11"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+              title="Please enter a valid 11-digit mobile number starting with 09 (e.g., 09123456789)"
+            >
+          </div>
+          <div class="input-group">
+            <label>Alternate Phone Number (Optional)</label>
+            <input 
+              type="tel" 
+              id="custAltPhone" 
+              placeholder="09987654321"
+              pattern="09[0-9]{9}"
+              maxlength="11"
+              oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+              title="Please enter a valid 11-digit mobile number starting with 09 (e.g., 09987654321)"
+            >
+          </div>
+          <div class="input-group">
+            <label>Delivery Address</label>
+            <textarea id="custAddress" rows="3" required placeholder="House No., Street, City, Landmark" autocomplete="street-address"></textarea>
+          </div>
+          <div class="input-group">
+            <label>Google Maps Pin Link (Optional)</label>
+            <input type="url" id="custPin" placeholder="https://maps.app.goo.gl/...">
+          </div>
+          
+          <button type="button" class="btn btn-outline" id="detectLocBtn" onclick="initMap()" style="width: 100%; margin-bottom: 10px; font-size: 0.9rem; padding: 10px; font-weight: 600; background: #FAFAFA;">
+            📍 Search Address on Map
+          </button>
+          
+          <div id="mapMessage" style="color: #D84315; font-size: 0.9rem; margin-bottom: 10px; font-weight: 600; text-align: center; display: none;"></div>
+          
+          <div id="map-container"></div>
+
+          <!-- Payment Options -->
+          <div class="input-group">
+            <label>Payment Method</label>
+            <select id="paymentMethod" onchange="toggleGCash()" required>
+              <option value="Cash on Delivery">Cash on Delivery</option>
+              <option value="GCash">GCash (Proof of Payment Required)</option>
+            </select>
+          </div>
+          
+          <!-- Hidden GCash Section -->
+          <div class="input-group" id="gcashSection" style="display: none; background: #FFF3E0; padding: 15px; border-radius: 8px; border: 1.5px dashed var(--accent);">
+            <label style="color: var(--accent); margin-bottom: 8px;">GCash Payment Details</label>
+            <p style="margin: 0 0 10px; font-size: 0.9rem;">Please send <strong>₱<span id="gcashTotalDisplay">0</span></strong> to:<br><strong>0917 6777 310 (JE***E Q.)</strong></p>
+            
+            <label style="font-size: 0.85rem;">Upload Screenshot / Proof of Payment</label>
+            <input type="file" id="proofFile" accept="image/*" onchange="compressProof(this)" style="padding: 10px 0; background: transparent; border: none;">
+            <input type="hidden" id="proofData">
+            <div id="proofStatus" style="font-size: 0.85rem; color: var(--accent); font-weight: 600;"></div>
+          </div>
+          
+          <button type="submit" class="submit-btn" id="submitBtn">Confirm Order</button>
+        </form>
+        <div class="status-message" id="statusMessage"></div>
+      </div>
+    </div>
+
+    <!-- Tracker Sheet -->
+    <div class="bottom-sheet" id="trackerSheet">
+      <div class="sheet-content">
+        <div class="sheet-header">
+          <h2>Track Order</h2>
+          <button class="close-btn" onclick="closeAllSheets()">×</button>
+        </div>
+        <p style="font-size: 0.95rem; color: var(--text-muted);">Enter the Order ID sent to your email to check its status.</p>
+        
+        <form id="trackerForm" onsubmit="checkStatus(event)">
+          <div class="input-group">
+            <label>Order ID</label>
+            <input type="text" id="searchOrderId" required placeholder="e.g. ORD-12345" style="text-transform: uppercase;">
+          </div>
+          <button type="submit" class="submit-btn" id="trackBtn">Check Status</button>
+        </form>
+        
+        <div id="trackerResult" class="tracker-result">
+          <strong>Order Found!</strong><br>
+          <span style="font-size: 0.9rem; color: var(--text-muted);" id="resDate"></span><br>
+          <div class="status-badge" id="resStatus">Pending</div>
+        </div>
+        <div id="trackerError" style="color: #d32f2f; margin-top: 15px; font-weight: 600; display: none;"></div>
+      </div>
+    </div>
+
+    <!-- Floating Contact Trigger Button -->
+    <button type="button" class="contact-float-btn" onclick="openContactModal()">
+      💬 Contact Us
+    </button>
+
+    <!-- Contact Modal Sheet -->
+    <div class="bottom-sheet" id="contactSheet">
+      <div class="sheet-content">
+        <div class="sheet-header">
+          <h2>Need Help? Contact Us</h2>
+          <button class="close-btn" onclick="closeAllSheets()">×</button>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: -10px;">
+          Choose your preferred app to reach out to us:
+        </p>
+        
+        <div class="contact-options">
+          <a href="tel:+639176777310" class="contact-opt-btn opt-call">
+            <span style="font-size: 1.4rem;">📞</span>
+            <div>
+              Phone Call or SMS<br>
+              <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.8;">0917 6777 310</span>
+            </div>
+          </a>
+          
+          <a href="https://wa.me/639176777310" target="_blank" class="contact-opt-btn opt-whatsapp">
+            <span style="font-size: 1.4rem;">💬</span>
+            <div>
+              WhatsApp Message<br>
+              <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.9;">Chat directly on WhatsApp</span>
+            </div>
+          </a>
+          
+          <a href="viber://chat?number=639176777310" class="contact-opt-btn opt-viber">
+            <span style="font-size: 1.4rem;">💜</span>
+            <div>
+              Viber Message<br>
+              <span style="font-size: 0.8rem; font-weight: 400; opacity: 0.9;">Chat directly on Viber</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share Modal Sheet -->
+    <div class="bottom-sheet" id="shareSheet">
+      <div class="sheet-content">
+        <div class="sheet-header">
+          <h2>Share Hopia & etc.</h2>
+          <button class="close-btn" onclick="closeAllSheets()">×</button>
+        </div>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: -10px;">
+          Share our store link with your friends and family:
+        </p>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="shareUrlInput" value="https://ggl.link/HopiaEtc" readonly style="flex: 1; padding: 12px; border: 1.5px solid #EFEBE9; border-radius: var(--radius-md); font-weight: 700; background: #FAFAFA; color: var(--text-main);">
+          <button type="button" class="btn-accent" onclick="copyStoreLink()" style="width: auto; padding: 0 20px; border-radius: var(--radius-md); font-weight: 700;">Copy</button>
+        </div>
+        <div id="copyNotice" style="color: #2E7D32; font-size: 0.85rem; font-weight: 700; margin-bottom: 15px; display: none; text-align: center;">Link copied to clipboard! ✓</div>
+
+        <div class="contact-options">
+          <a href="viber://forward?text=Check%20out%20Hopia%20%26%20etc.%20freshly%20baked%20pastries!%20https%3A%2F%2Fggl.link%2FHopiaEtc" class="contact-opt-btn opt-viber">
+            <span style="font-size: 1.3rem;">💜</span> Share via Viber
+          </a>
+          <a href="https://api.whatsapp.com/send?text=Check%20out%20Hopia%20%26%20etc.%20freshly%20baked%20pastries!%20https%3A%2F%2Fggl.link%2FHopiaEtc" target="_blank" class="contact-opt-btn opt-whatsapp">
+            <span style="font-size: 1.3rem;">💬</span> Share via WhatsApp
+          </a>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=https://ggl.link/HopiaEtc" target="_blank" class="contact-opt-btn" style="background: #1877F2; color: white;">
+            <span style="font-size: 1.3rem;">📘</span> Share via Facebook
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let menuData = [];
+      let totalQty = 0;
+      let totalAmount = 0;
+      let map = null;
+      let marker = null;
+
+      window.addEventListener('load', function() {
+        if (typeof google !== 'undefined') {
+          google.script.run
+            .withSuccessHandler(renderMenu)
+            .withFailureHandler(function(error) {
+              document.getElementById('menuGrid').innerHTML = '<div class="loader" style="color:red;">Error loading menu: ' + error.message + '</div>';
+            })
+            .getMenu();
+        } else {
+          document.getElementById('menuGrid').innerHTML = '<div class="loader">Google Apps Script environment not detected.</div>';
+        }
+      });
+
+      function renderMenu(items) {
+        menuData = items;
+        const grid = document.getElementById('menuGrid');
+        grid.innerHTML = ''; 
+
+        if (!items || items.length === 0) {
+          grid.innerHTML = '<div class="loader">Menu is currently empty.</div>';
+          return;
+        }
+
+        items.forEach((item, idx) => {
+          const card = document.createElement('div');
+          card.className = 'product-card';
+          const imgSrc = item.imageUrl ? item.imageUrl : 'https://via.placeholder.com/300x200?text=Fresh+Pastry';
+          
+          card.innerHTML = `
+            <img src="${imgSrc}" class="product-image" alt="${item.name}">
+            <div class="product-info">
+              <h3 class="product-name">${item.name}</h3>
+              <div class="product-price">₱${item.price}</div>
+              <div class="stepper">
+                <button type="button" class="step-btn" onclick="updateItem(${idx}, -1)">-</button>
+                <div class="step-value" id="qty-${idx}">0</div>
+                <button type="button" class="step-btn" onclick="updateItem(${idx}, 1)">+</button>
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      // FIXED: Uses 'index' parameter consistently
+      function updateItem(index, change) {
+        const qtyEl = document.getElementById(`qty-${index}`);
+        if (!qtyEl) return;
+        let qty = parseInt(qtyEl.innerText) + change;
+        if (qty < 0) qty = 0;
+        qtyEl.innerText = qty;
+        calculateCart();
+      }
+
+      function calculateCart() {
+        totalQty = 0;
+        totalAmount = 0;
+
+        menuData.forEach((item, idx) => {
+          const qtyEl = document.getElementById(`qty-${idx}`);
+          const qty = qtyEl ? (parseInt(qtyEl.innerText) || 0) : 0;
+          if (qty > 0) {
+            totalQty += qty;
+            totalAmount += (qty * item.price);
+          }
+        });
+
+        const basketBar = document.getElementById('basketBar');
+        if (totalQty > 0) {
+          basketBar.classList.add('visible');
+          document.getElementById('basketCount').innerText = `${totalQty} item${totalQty > 1 ? 's' : ''}`;
+          document.getElementById('basketTotal').innerText = `₱${totalAmount}`;
+        } else {
+          basketBar.classList.remove('visible');
+        }
+      }
+
+      function openCheckout() {
+        if (totalQty === 0) return;
+        
+        let summaryText = "<strong>Order Summary:</strong><br><br>";
+        menuData.forEach((item, idx) => {
+          const qtyEl = document.getElementById(`qty-${idx}`);
+          const qty = qtyEl ? (parseInt(qtyEl.innerText) || 0) : 0;
+          if (qty > 0) {
+            summaryText += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                              <span>${qty}x ${item.name}</span>
+                              <span>₱${qty * item.price}</span>
+                            </div>`;
+          }
+        });
+        
+        summaryText += `<div style="display:flex; justify-content:space-between; font-weight:600; color:var(--text-muted); margin-top:10px; font-size:0.9rem;">
+                          <span>Total Items</span>
+                          <span>${totalQty} pcs</span>
+                        </div>
+                        <hr style="border:0; border-top:1px solid #ddd; margin:10px 0;">
+                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.1rem;">
+                          <span>Total Amount</span>
+                          <span style="color:var(--accent);">₱${totalAmount}</span>
+                        </div>`;
+        
+        document.getElementById('summaryBox').innerHTML = summaryText;
+        document.getElementById("gcashTotalDisplay").innerText = totalAmount;
+        
+        document.getElementById('overlay').classList.add('active');
+        document.getElementById('checkoutSheet').classList.add('active');
+      }
+
+      function openTracker() {
+        document.getElementById('overlay').classList.add('active');
+        document.getElementById('trackerSheet').classList.add('active');
+        document.getElementById('trackerResult').classList.remove('show');
+        document.getElementById('trackerError').style.display = 'none';
+        document.getElementById('searchOrderId').value = '';
+      }
+
+      function openContactModal() {
+        document.getElementById('overlay').classList.add('active');
+        document.getElementById('contactSheet').classList.add('active');
+      }
+
+      function shareStore() {
+        document.getElementById('overlay').classList.add('active');
+        document.getElementById('shareSheet').classList.add('active');
+        document.getElementById('copyNotice').style.display = 'none';
+      }
+
+      function copyStoreLink() {
+        const input = document.getElementById("shareUrlInput");
+        input.select();
+        input.setSelectionRange(0, 99999);
+        
+        try {
+          document.execCommand('copy');
+          document.getElementById('copyNotice').style.display = 'block';
+          setTimeout(function() {
+            document.getElementById('copyNotice').style.display = 'none';
+          }, 3000);
+        } catch (err) {
+          alert("Please copy manually: https://ggl.link/HopiaEtc");
+        }
+      }
+
+      function closeAllSheets() {
+        document.getElementById('overlay').classList.remove('active');
+        document.getElementById('checkoutSheet').classList.remove('active');
+        document.getElementById('trackerSheet').classList.remove('active');
+        if (document.getElementById('contactSheet')) document.getElementById('contactSheet').classList.remove('active');
+        if (document.getElementById('shareSheet')) document.getElementById('shareSheet').classList.remove('active');
+        document.getElementById('statusMessage').innerText = '';
+      }
+
+      function toggleGCash() {
+        const method = document.getElementById("paymentMethod").value;
+        const gcashSec = document.getElementById("gcashSection");
+        if (method === "GCash") {
+          gcashSec.style.display = "block";
+          document.getElementById("gcashTotalDisplay").innerText = totalAmount;
+        } else {
+          gcashSec.style.display = "none";
+          document.getElementById("proofData").value = "";
+          document.getElementById("proofFile").value = "";
+          document.getElementById("proofStatus").innerText = "";
+        }
+      }
+
+      function compressProof(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const status = document.getElementById("proofStatus");
+        status.innerText = "Compressing image for upload...";
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 300; 
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const base64data = canvas.toDataURL('image/jpeg', 0.5);
+            if (base64data.length > 49000) {
+               status.innerText = "Error: Image is too large. Please take a simpler screenshot.";
+               document.getElementById("proofData").value = "";
+            } else {
+               document.getElementById("proofData").value = base64data;
+               status.innerText = "Proof attached successfully! ✓";
+            }
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function showMapMessage(msg) {
+        const msgBox = document.getElementById("mapMessage");
+        msgBox.innerText = msg;
+        msgBox.style.display = "block";
+        setTimeout(function() { msgBox.style.display = "none"; }, 6000); 
+      }
+
+      function initMap() {
+        const btn = document.getElementById("detectLocBtn");
+        const addressField = document.getElementById("custAddress");
+        const addressQuery = addressField.value.trim();
+
+        btn.innerText = "Searching Map...";
+        btn.disabled = true;
+        document.getElementById("mapMessage").style.display = "none";
+
+        if (addressQuery !== "") {
+          const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`;
+          
+          fetch(searchUrl)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+              if (data && data.length > 0) {
+                setupMap(parseFloat(data[0].lat), parseFloat(data[0].lon));
+              } else {
+                showMapMessage("Could not pin the exact address automatically. Please drag the pin on the map to your delivery location.");
+                setupMap(14.5995, 120.9842); 
+              }
+              btn.innerText = "📍 Update Pin Location";
+              btn.disabled = false;
+            })
+            .catch(function(err) {
+              console.error(err);
+              showMapMessage("Map search failed. Please drag the pin on the map to your delivery location.");
+              setupMap(14.5995, 120.9842);
+              btn.innerText = "📍 Update Pin Location";
+              btn.disabled = false;
+            });
+            
+        } else {
+          if (!navigator.geolocation) {
+            setupMap(14.5995, 120.9842);
+            btn.innerText = "📍 Update Pin Location";
+            btn.disabled = false;
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            function(position) {
+              setupMap(position.coords.latitude, position.coords.longitude);
+              btn.innerText = "📍 Update Pin Location";
+              btn.disabled = false;
+            },
+            function(error) {
+              setupMap(14.5995, 120.9842);
+              btn.innerText = "📍 Update Pin Location";
+              btn.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          );
+        }
+      }
+
+      function setupMap(lat, lon) {
+        const mapContainer = document.getElementById("map-container");
+        const pinField = document.getElementById("custPin");
+        
+        mapContainer.style.display = "block";
+        pinField.value = `https://www.google.com/maps?q=${lat},${lon}`;
+        
+        if (!map) {
+          map = L.map('map-container').setView([lat, lon], 17);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+          }).addTo(map);
+          
+          marker = L.marker([lat, lon], {draggable: true}).addTo(map);
+          
+          marker.on('dragend', function() {
+             const pos = marker.getLatLng();
+             pinField.value = `https://www.google.com/maps?q=${pos.lat},${pos.lng}`;
+          });
+        } else {
+          map.setView([lat, lon], 17);
+          marker.setLatLng([lat, lon]);
+        }
+        
+        setTimeout(function() { map.invalidateSize(); }, 300);
+      }
+
+      function submitOrder(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById("submitBtn");
+        const method = document.getElementById("paymentMethod").value;
+        const proof = document.getElementById("proofData").value;
+        const statusMsg = document.getElementById("statusMessage");
+        
+        if (method === "GCash" && !proof) {
+            statusMsg.style.color = "#d32f2f";
+            statusMsg.innerText = "Please upload your GCash proof of payment before confirming.";
+            setTimeout(function() { 
+              statusMsg.innerText = ""; 
+              statusMsg.style.color = "#2E7D32"; 
+            }, 5000);
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+        statusMsg.innerText = ""; 
+
+        let selectedItems = [];
+        menuData.forEach((item, idx) => {
+          const qtyEl = document.getElementById(`qty-${idx}`);
+          const qty = qtyEl ? (parseInt(qtyEl.innerText) || 0) : 0;
+          if (qty > 0) selectedItems.push(`${qty}x ${item.name} (₱${qty * item.price})`);
+        });
+
+        const payload = {
+          name: document.getElementById("custName").value,
+          email: document.getElementById("custEmail").value,
+          phone: document.getElementById("custPhone").value,
+          altPhone: document.getElementById("custAltPhone").value,
+          address: document.getElementById("custAddress").value,
+          pinLocation: document.getElementById("custPin").value,
+          itemsSummary: selectedItems.join("\n"),
+          total: totalAmount,
+          paymentMethod: method,       
+          proofOfPayment: proof        
+        };
+
+        google.script.run
+          .withSuccessHandler(function(orderId) {
+            statusMsg.style.color = "#2E7D32"; 
+            statusMsg.innerHTML = `Success! Your Order ID is <strong>${orderId}</strong>`;
+            
+            document.getElementById("orderForm").reset();
+            if(map) { document.getElementById("map-container").style.display = "none"; }
+            document.getElementById("gcashSection").style.display = "none";
+            document.getElementById("proofData").value = "";
+            document.getElementById("proofStatus").innerText = "";
+            
+            menuData.forEach((_, idx) => { 
+              const el = document.getElementById(`qty-${idx}`);
+              if (el) el.innerText = "0"; 
+            });
+            calculateCart();
+            
+            btn.disabled = false;
+            btn.innerText = "Confirm Order";
+            
+            setTimeout(closeAllSheets, 4000);
+          })
+          .processOrder(payload);
+      }
+
+      function checkStatus(e) {
+        e.preventDefault();
+        const btn = document.getElementById("trackBtn");
+        const orderId = document.getElementById("searchOrderId").value.trim();
+        
+        btn.disabled = true;
+        btn.innerText = "Searching...";
+        document.getElementById('trackerResult').classList.remove('show');
+        document.getElementById('trackerError').style.display = 'none';
+
+        google.script.run
+          .withSuccessHandler(function(result) {
+            btn.disabled = false;
+            btn.innerText = "Check Status";
+            
+            if(result) {
+              document.getElementById('resDate').innerText = "Placed on: " + result.date;
+              document.getElementById('resStatus').innerText = "Status: " + result.status;
+              
+              const badge = document.getElementById('resStatus');
+              if(result.status.toLowerCase().includes('pending')) badge.style.backgroundColor = '#f57c00'; 
+              else if(result.status.toLowerCase().includes('deliv') || result.status.toLowerCase().includes('complet')) badge.style.backgroundColor = '#388e3c'; 
+              else badge.style.backgroundColor = 'var(--text-main)';
+
+              document.getElementById('trackerResult').classList.add('show');
+            } else {
+              document.getElementById('trackerError').innerText = "Order not found. Please check your ID and try again.";
+              document.getElementById('trackerError').style.display = 'block';
+            }
+          })
+          .getOrderStatus(orderId);
+      }
+    </script>
+  </body>
+</html>
